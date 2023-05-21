@@ -1,8 +1,11 @@
 use iced::alignment;
 use iced::widget::{
-    self, button, column, container, row, text, Button, Column, Container, Row, Text,
+    self, button, column, container, row, text, Button, Column, Container, Row, Svg, Text,
 };
 use iced::{window, Alignment, Color, Element, Length, Sandbox, Settings};
+use rand::prelude::*;
+
+const GAME_OVER_STRIKE: i8 = 9;
 
 struct Counter {
     value: i32,
@@ -22,10 +25,23 @@ impl Sandbox for Counter {
     type Message = Message;
 
     fn new() -> Self {
+        let mut rng = rand::thread_rng();
+
+        let file_output = std::fs::read_to_string("./assets/words.txt").unwrap();
+
+        let words: Vec<&str> = file_output
+            .split("\r\n")
+            .collect::<Vec<&str>>()
+            .into_iter()
+            .filter(|w| w.len() > 0)
+            .collect::<Vec<&str>>();
+
+        let random_word = words[rng.gen_range(0..words.len())];
+
         Counter {
             value: 0,
             clicked: Vec::new(),
-            target_word: "huntress".to_string(),
+            target_word: random_word.to_string(),
             tries: 0,
         }
     }
@@ -67,7 +83,7 @@ impl Sandbox for Counter {
             })
             .collect::<String>();
 
-        let game_over = self.target_word != censored_text && self.tries >= 7;
+        let game_over = self.target_word != censored_text && self.tries == GAME_OVER_STRIKE;
         let game_won = self.target_word == censored_text;
 
         let alphabet = [
@@ -93,7 +109,7 @@ impl Sandbox for Counter {
         } else if game_won {
             "You won!".to_string()
         } else {
-            format!("You have {} tries left.", 7 - self.tries)
+            format!("You have {} tries left.", GAME_OVER_STRIKE - self.tries)
         })
         .horizontal_alignment(alignment::Horizontal::Center)
         .style(if game_over {
@@ -120,7 +136,10 @@ impl Sandbox for Counter {
         .vertical_alignment(alignment::Vertical::Center)
         .horizontal_alignment(alignment::Horizontal::Center);
 
-        let app = column![warning_text, hints, btn_row].spacing(30);
+        let image = Svg::from_path(format!("./assets/{}.svg", &self.tries.to_string()));
+        let image_container = container(image).center_x().center_y();
+
+        let app = column![warning_text, hints, image_container, btn_row].spacing(30);
 
         container(app)
             .width(Length::Fill)
@@ -133,7 +152,7 @@ impl Sandbox for Counter {
 pub fn main() -> iced::Result {
     Counter::run(Settings {
         window: window::Settings {
-            size: (640, 480),
+            size: (640, 640),
             ..window::Settings::default()
         },
         ..Settings::default()
